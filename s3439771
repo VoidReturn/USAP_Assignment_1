@@ -1,20 +1,12 @@
 #!/bin/bash
 
-#read file function; attempts to read file from stdin
-#expected format is username:passwordhash
-file_read() {
-	echo "reading file..."
-	while IFS=':' read -r username password <&0; do
-		echo "username is $username"
-		echo "password is $password"
-	done
-}
-
 #guess common passwords function; will compare provided hash to a list of common password hashed
 #will return a matched value or 0
 common_guess() {
-	echo "testing common passwords"
+	echo "testing user: $1"
+	echo "current password hash: $2"
 }
-
-file_read
-common_guess
+echo "reading file..."
+while IFS=':' read -r username password <&0; do
+	common_guess $username $password
+done
