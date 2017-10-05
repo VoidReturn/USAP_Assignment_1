@@ -3,9 +3,23 @@
 #guess common passwords function; will compare provided hash to a list of common password hashed
 #will return a matched value or 0
 common_guess() {
-	echo "testing user: $1"
-	echo "current password hash: $2"
+	if [ $# -lt 2 ]; then
+		echo "invalid function argument"
+	fi
+	current_user="$1"
+	current_pass="$2"
+	#echo "testing user: $1"
+	#echo "loading common list"
+	echo "$current_pass"
+	while read -r test;  do
+		test_hash=$(echo -n "$test"|sha256sum|awk '{print $1}')
+		if [ "$test_hash" == "$current_pass" ]; then
+			echo "match!"
+			echo "$current_user's password is $test"
+		fi
+	done < "./common_passwords.txt";
 }
+
 echo "reading file..."
 while IFS=':' read -r username password <&0; do
 	common_guess $username $password
