@@ -1,26 +1,43 @@
 #!/bin/bash
 
-#guess common passwords function; will compare provided hash to a list of common password hashed
-#will return a matched value or 0
-common_guess() {
-	if [ $# -lt 2 ]; then
+#global variables
+#the results.txt file is used for storing found passwords; common and dict are used to store respective lists of passwords to test
+RESULTS="results.txt"
+COMMON="common_passwords.txt"
+DICT="linux.words"
+
+#function for comparing a supplied password hash against a supplied password list
+#supplied arguements should be username passwordhash passwordlist
+#note: this function will be used for both the common passwords attack and the dictionary attack
+pass_comparison() {
+	if [ $# -lt 3 ]; then
 		echo "invalid function argument"
+		return -1
 	fi
-	current_user="$1"
-	current_pass="$2"
-	#echo "testing user: $1"
-	#echo "loading common list"
-	echo "$current_pass"
+	pass_list="$3"
 	while read -r test;  do
 		test_hash=$(echo -n "$test"|sha256sum|awk '{print $1}')
-		if [ "$test_hash" == "$current_pass" ]; then
-			echo "match!"
-			echo "$current_user's password is $test"
+		#echo "trying $test"
+		#sleep 0.5
+		if [ "$test_hash" == "$password" ]; then
+			echo "$username $test $password" >> $RESULTS
+			return 0
 		fi
-	done < "./common_passwords.txt";
+	done < "$pass_list";
 }
 
+#clear out the results.txt file of any previous matchs
+> $RESULTS
 echo "reading file..."
 while IFS=':' read -r username password <&0; do
-	common_guess $username $password
+	echo "testing $username against common passwords"
+	pass_comparison $username $password $COMMON
+	if egrep $username $RESULTS; then
+		continue
+	fi 
+	echo "testing $username against dictionary"
+	pass_comparison $username $password $DICT
+	if egrep $username $RESULTS; then
+		continue
+	fi 
 done
