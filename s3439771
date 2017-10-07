@@ -13,6 +13,7 @@ SLEEP_TIME=0.1
 RUN_LIMIT=120000
 
 
+
 #####################################################
 #				SCRIPT FUNCTIONS					#
 #				MAIN BODY AT BOTTOM					#
@@ -21,7 +22,7 @@ RUN_LIMIT=120000
 #supplied arguements should be username passwordhash passwordlist
 #note: this function will be used for both the common passwords attack and the dictionary attack
 pass_comparison() {
-	if [ -f $1 ]; then
+	if [ -f "$1" ]; then
 		echo "testing $username against $1"
 	else
 		echo "invalid function argument"
