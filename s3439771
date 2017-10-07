@@ -5,9 +5,10 @@
 RESULTS="results.txt"
 COMMON="common_passwords.txt"
 DICT="linux.words"
-#SLEEP_TIME sets how long the script wait between each test; RUN_LIMIT is the time in seconds before the script should abort a test
+#SLEEP_TIME sets how long the script wait between each test; RUN_LIMIT is the number of iterations before the script should abort a test
+#these are currently set at 0.1 and 1200 to producde a run time of 2 minutes
 SLEEP_TIME=0.1
-RUN_LIMIT=120
+RUN_LIMIT=1200
 
 #function for comparing a supplied password hash against a supplied password list
 #supplied arguements should be username passwordhash passwordlist
@@ -19,36 +20,55 @@ pass_comparison() {
 	fi
 	pass_list="$3"
 	test_cutoff=0
+	#loop through each line of the supplied file
 	while read -r test;  do
-		if [ $test_cutoff -gt 1000 ]; then
+		#format the test password into lowercase
+		formatted_test=${test,,}
+
+		#test wether the iteration limit has been reached
+		if [ $test_cutoff -gt $RUN_LIMIT ]; then
 			echo "testing limit reached; aborting attack"
 			return 1;
 		fi
-		let "test_cutoff++"
-		test_hash=$(echo -n "$test"|sha256sum|awk '{print $1}')
+
+		#convert the current test password into a hash and then compare against supplied password hash
+		test_hash=$(echo -n "$formatted_test"|sha256sum|awk '{print $1}')
 		#echo "trying $test"
-		sleep $SLEEP_TIME
 		if [ "$test_hash" == "$password" ]; then
+			echo "MATCH!"
 			echo "$username $test $password" >> $RESULTS
 			return 0
 		fi
+
+		#increment limit counter and then wait for SLEEP_TIME
+		let "test_cutoff++"
+		sleep $SLEEP_TIME
 	done < "$pass_list";
 }
 
 brute_attack() {
 	test_cutoff=0
+
+	#loop through a four character test case starting at 'aaaa' and finishing at 'zzzz'
 	for test in {a..z}{a..z}{a..z}{a..z}; do
-		if [ $test_cutoff -gt 10000 ]; then
+
+		#test wether the iteration limit has been reached
+		if [ $test_cutoff -gt $RUN_LIMIT ]; then
 			echo "testing limit reached; aborting attack"
 			return 1;
 		fi	
+	
+		#convert test password into a hash and then compare against the supplied password hash
 		test_hash=$(echo -n "$test"|sha256sum|awk '{print $1}')
-		sleep $SLEEP_TIME
+		#echo "$test"
 		if [ "$test_hash" == "$password" ]; then
 			echo "$username $test $password" >> $RESULTS
 			return 0;
 		fi
-		echo "$test"
+
+		#increment the limit counter and then wait for SLEEP_TIME
+		let "test_cutoff++"
+		sleep $SLEEP_TIME
 	done
 }
 
@@ -56,13 +76,15 @@ brute_attack() {
 > $RESULTS
 echo "reading file..."
 while IFS=':' read -r username password <&0; do
+	#run each test for the current user:passwordhash combination
 	echo "testing $username against common passwords"
-	#pass_comparison $username $password $COMMON
+	pass_comparison $username $password $COMMON
+	#test if the password has already been found before moving onto the next test
 	if egrep $username $RESULTS; then
 		continue
 	fi 
 	echo "testing $username against dictionary"
-	#pass_comparison $username $password $DICT
+	pass_comparison $username $password $DICT
 	if egrep $username $RESULTS; then
 		continue
 	fi 
