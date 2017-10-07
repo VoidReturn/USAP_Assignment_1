@@ -2,13 +2,15 @@
 
 #global variables
 #the results.txt file is used for storing found passwords; common and dict are used to store respective lists of passwords to test
+#list of common passwords is stored in a seperate file to keep the script itself cleaner
+#the list itself was compiled by googling 'list of common passwords' which turned up lists from splashdata for the years 2011-2015
 RESULTS="results.txt"
 COMMON="common_passwords.txt"
 DICT="linux.words"
 #SLEEP_TIME sets how long the script wait between each test; RUN_LIMIT is the number of iterations before the script should abort a test
-#these are currently set at 0.1 and 1200 to producde a run time of 2 minutes
+#these are currently set at 0.1 and 120000 to producde a run time of 2 minutes
 SLEEP_TIME=0.1
-RUN_LIMIT=1200
+RUN_LIMIT=120000
 
 
 #####################################################
@@ -19,22 +21,24 @@ RUN_LIMIT=1200
 #supplied arguements should be username passwordhash passwordlist
 #note: this function will be used for both the common passwords attack and the dictionary attack
 pass_comparison() {
-	if [ $# -lt 3 ]; then
+	if [ -f $1 ]; then
+		echo "testing $username against $1"
+	else
 		echo "invalid function argument"
 		return 1
 	fi
-	pass_list="$3"
+	pass_list="$1"
 	test_cutoff=0
 	#loop through each line of the supplied file
 	while read -r test;  do
 		#format the test password into lowercase
 		formatted_test=${test,,}
 
-		#test wether the iteration limit has been reached
-		if [ $test_cutoff -gt $RUN_LIMIT ]; then
-			echo "testing limit reached; aborting attack"
-			return 1;
-		fi
+		#test wether the iteration limit has been reached; this is for testing purposes only
+		#if [ $test_cutoff -gt $RUN_LIMIT ]; then
+		#	echo "testing limit reached; aborting attack"
+		#	return 1;
+		#fi
 
 		#convert the current test password into a hash and then compare against supplied password hash
 		test_hash=$(echo -n "$formatted_test"|sha256sum|awk '{print $1}')
@@ -45,8 +49,8 @@ pass_comparison() {
 			return 0
 		fi
 
-		#increment limit counter and then wait for SLEEP_TIME
-		let "test_cutoff++"
+		##increment limit counter and then wait for SLEEP_TIME
+		#((test_cutoff++))
 		sleep $SLEEP_TIME
 	done < "$pass_list";
 }
@@ -64,7 +68,8 @@ brute_attack() {
 			echo "$username $match $password" >> $RESULTS
 			return 0;
 		fi
-		let "test_cutoff++"
+		((test_cutoff++))
+		echo "$test_cutoff"
 		for second in {a..z}; do
 			test_hash=$(echo -n "$first$second"|sha256sum|awk '{print $1}')
 			#echo "$test"
@@ -74,7 +79,8 @@ brute_attack() {
 				echo "$username $match $password" >> $RESULTS
 				return 0;
 			fi		
-			let "test_cutoff++"
+			((test_cutoff++))
+			echo "$test_cutoff"	
 			for third in {a..z}; do
 				test_hash=$(echo -n "$first$second$third"|sha256sum|awk '{print $1}')
 				#echo "$test"
@@ -84,7 +90,7 @@ brute_attack() {
 					echo "$username $match $password" >> $RESULTS
 					return 0;
 				fi
-				let "test_cutoff++"
+				((test_cutoff++))
 				for fourth in {a..z}; do
 					 if [ $test_cutoff -gt $RUN_LIMIT ]; then
 						echo "testing limit reached; aborting attack"
@@ -98,7 +104,8 @@ brute_attack() {
 						echo "$username $match $password" >> $RESULTS
 						return 0;
 					fi
-					let "test_cutoff++"
+					((test_cutoff++))
+					echo "$test_cutoff"
 				done
 			done
 		done
@@ -113,19 +120,17 @@ echo "Username Password Hash" > $RESULTS
 echo "reading file..."
 while IFS=':' read -r username password <&0; do
 	#run each test for the current user:passwordhash combination
-	echo "testing $username against common passwords"
-	pass_comparison $username $password $COMMON
+	pass_comparison "$COMMON"
 	#test if the password has already been found before moving onto the next test
 	if grep "$username" $RESULTS; then
 		continue
 	fi 
-	echo "testing $username against dictionary"
-	pass_comparison $username $password $DICT
+	pass_comparison "$DICT"
 	if grep "$username" $RESULTS; then
 		continue
 	fi 
 	echo "testing $username against brute force"
-	brute_attack $username $password
+	brute_attack 
 done
 
 echo "printing results"
