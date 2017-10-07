@@ -10,13 +10,18 @@ DICT="linux.words"
 SLEEP_TIME=0.1
 RUN_LIMIT=1200
 
+
+#####################################################
+#				SCRIPT FUNCTIONS					#
+#				MAIN BODY AT BOTTOM					#
+#####################################################
 #function for comparing a supplied password hash against a supplied password list
 #supplied arguements should be username passwordhash passwordlist
 #note: this function will be used for both the common passwords attack and the dictionary attack
 pass_comparison() {
 	if [ $# -lt 3 ]; then
 		echo "invalid function argument"
-		return -1
+		return 1
 	fi
 	pass_list="$3"
 	test_cutoff=0
@@ -100,20 +105,23 @@ brute_attack() {
 	done
 }
 
+#####################################################
+#				MAIN BODY OF SCRIPT					#
+#####################################################
 #clear out the results.txt file of any previous matchs
-> $RESULTS
+echo "Username Password Hash" > $RESULTS
 echo "reading file..."
 while IFS=':' read -r username password <&0; do
 	#run each test for the current user:passwordhash combination
 	echo "testing $username against common passwords"
-	#pass_comparison $username $password $COMMON
+	pass_comparison $username $password $COMMON
 	#test if the password has already been found before moving onto the next test
-	if egrep $username $RESULTS; then
+	if grep "$username" $RESULTS; then
 		continue
 	fi 
 	echo "testing $username against dictionary"
-	#pass_comparison $username $password $DICT
-	if egrep $username $RESULTS; then
+	pass_comparison $username $password $DICT
+	if grep "$username" $RESULTS; then
 		continue
 	fi 
 	echo "testing $username against brute force"
